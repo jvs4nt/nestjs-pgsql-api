@@ -1,4 +1,4 @@
-import { Repository, DataSource } from 'typeorm';
+import { EntityRepository, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRole } from './user-roles.enum';
@@ -6,15 +6,12 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import {
   ConflictException,
-  Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { CredentialsDto } from '../auth/dto/credentials.dto';
 
-@Injectable()
+@EntityRepository(User)
 export class UserRepository extends Repository<User> {
-  constructor(private dataSource: DataSource) {
-    super(User, dataSource.createEntityManager());
-  }
   async createUser(
     createUserDto: CreateUserDto,
     role: UserRole,
@@ -42,6 +39,17 @@ export class UserRepository extends Repository<User> {
           'Erro ao salvar o usuário no banco de dados',
         );
       }
+    }
+  }
+
+  async checkCredentials(credentialsDto: CredentialsDto): Promise<User> {
+    const { email, password } = credentialsDto;
+    const user = await this.findOne({ email, status: true });
+
+    if (user && (await user.checkPassword(password))) {
+      return user;
+    } else {
+      return null;
     }
   }
 
